@@ -1,22 +1,38 @@
 #!/usr/bin/env python
 
+import humanize
 import shlex
 import sys
+import time
 import xml.etree.ElementTree as etree
 from datetime import datetime
+from pytz import timezone
 from subprocess import check_output
 
-limit = sys.argv[1] if len(sys.argv) > 1 else 10
-log = check_output(shlex.split('svn log --xml -l {}'.format(limit)))
-root = etree.fromstring(log)
+def utc_to_local(dateobj):
+    utc = timezone('UTC')
+    local = timezone('US/Mountain')
+    return utc.localize(dateobj).astimezone(local)
 
-for entry in root:
-    rev = entry.attrib['revision']
-    author = entry.find('author').text
-    datestr = entry.find('date').text
-    date = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S.%fZ').strftime('%b %-d %Y')
-    msg = entry.find('msg').text
-    if msg:
-        msg = msg.splitlines()[0]
+def humanize_date(datestr):
+    dateobj = datetime.strptime(datestr, '%Y-%m-%dT%H:%M:%S.%fZ')
+    dateobj = utc_to_local(dateobj).replace(tzinfo=None)
+    return humanize.naturaltime(dateobj)
 
-    sys.stdout.write('\033[31m{}\033[0m - {} \033[32m({})\033[0m \033[34m<{}>\033[0m\n'.format(rev, msg, date, author))
+def main():
+    limit = sys.argv[1] if len(sys.argv) > 1 else 10
+    log = check_output(shlex.split('svn log --xml -l {}'.format(limit)))
+    root = etree.fromstring(log)
+
+    for entry in root:
+        rev = entry.attrib['revision']
+        author = entry.find('author').text
+        date = humanize_date(entry.find('date').text)
+        msg = entry.find('msg').text
+        if msg: msg = msg.splitlines()[0]
+
+        sys.stdout.write('\033[31m{}\033[0m - {} \033[32m({})\033[0m \033[34m<{}>\033[0m\n'.format(rev, msg, date, author))
+
+
+if __name__ == '__main__':
+    main()
