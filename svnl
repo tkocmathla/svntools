@@ -3,14 +3,22 @@
 import humanize
 import shlex
 import sys
+import time
 import xml.etree.ElementTree as etree
 from datetime import datetime
 from pytz import timezone
 from subprocess import check_output
 
+def get_offset_hour():
+    if time.localtime().tm_isdst:
+        offset = time.altzone / 3600
+    else:
+        offset = time.timezone / 3600
+    return offset
+
 def utc_to_local(dateobj):
     utc = timezone('UTC')
-    local = timezone('US/Mountain')
+    local = timezone('Etc/GMT%+d' % get_offset_hour())
     return utc.localize(dateobj).astimezone(local)
 
 def humanize_date(datestr):
